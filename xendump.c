@@ -1854,6 +1854,7 @@ xc_core_elf_pfn_valid(ulong pfn)
 	uint nr_pages;
         ulong tmp;
         uint64_t pfn_batch[MAX_BATCH_SIZE];
+	int chunk =  xd->xc_core.header.xch_nr_pages/INDEX_PFN_COUNT;
 
         offset = xd->xc_core.header.xch_index_offset;
 	nr_pages = xd->xc_core.header.xch_nr_pages;
@@ -1871,9 +1872,9 @@ xc_core_elf_pfn_valid(ulong pfn)
 	} else {
 		for (i = 0; i <= INDEX_PFN_COUNT; i++) {
 			if ((i == INDEX_PFN_COUNT) ||
-			    (pfn < xd->xc_core.elf_index_pfn[i].pfn)) {
-				if (--i < 0)
-					i = 0;
+			    (pfn < xd->xc_core.elf_index_pfn[i].pfn + chunk)) {
+				//if (--i < 0)
+				//	i = 0;
 				start_index = xd->xc_core.elf_index_pfn[i].index;
 				break;
 			}
@@ -2844,6 +2845,7 @@ xc_core_elf_pfn_init(void)
 
 			xd->xc_core.elf_index_pfn[i].index = c;
 			xd->xc_core.elf_index_pfn[i].pfn = (ulong)pfn;
+			//printf("pfn %x, index %x\n", pfn, c);
 		}
 		break;
 
@@ -2873,4 +2875,19 @@ struct xendump_data *
 get_xendump_data(void)
 {
 	return (XENDUMP_VALID() ? xd : NULL);
+}
+
+int xendump_phys_base(ulong *phys_base)
+{
+	struct machine_specific *ms = machdep->machspec;
+
+	if (ms->phys_offset)
+		return FALSE;
+
+	if (xd->flags & (XC_CORE_P2M_CREATE|XC_CORE_PFN_CREATE))
+		xc_core_create_pfn_tables();
+
+	*phys_base = xd->xc_core.elf_index_pfn[0].pfn << 12;
+
+	return TRUE;
 }

@@ -962,6 +962,23 @@ arm64_calc_kimage_voffset(void)
 				"Try using the command line option: --machdep kimage_voffset=<addr>\n");
 		}
 		return;
+	} else if (XENDUMP_DUMPFILE()) {
+		errflag = 1;
+		if (xendump_phys_base(&phys_addr)) {  /* Get start address of first memory block */
+			ms->kimage_voffset = ms->vmalloc_start_addr - phys_addr;
+			if ((kt->flags2 & KASLR) && (kt->flags & RELOC_SET))
+				ms->kimage_voffset += (kt->relocate * -1);
+			if (verify_kimage_voffset() || arm64_search_for_kimage_voffset(phys_addr))
+				errflag = 0;
+		}
+
+		if (errflag) {
+			error(WARNING,
+				"kimage_voffset cannot be determined from the dumpfile.\n");
+			error(CONT,
+				"Try using the command line option: --machdep kimage_voffset=<addr>\n");
+		}
+		return;
 	} else {
 		error(WARNING,
 			"kimage_voffset cannot be determined from the dumpfile.\n");
@@ -1078,6 +1095,8 @@ arm64_calc_phys_offset(void)
 	} else if (DISKDUMP_DUMPFILE() && diskdump_phys_base(&phys_offset)) {
 		ms->phys_offset = phys_offset;
 	} else if (KDUMP_DUMPFILE() && arm64_kdump_phys_base(&phys_offset)) {
+		ms->phys_offset = phys_offset;
+	} else if (XENDUMP_DUMPFILE() && arm64_kdump_phys_base(&phys_offset)) {
 		ms->phys_offset = phys_offset;
 	} else {
 		error(WARNING,
